@@ -23,7 +23,7 @@ Crowd sourcing data collection
 
 Unifying lens for the book is “Probabilistic modeling and Bayesian decision theory”
 
-## Python packages
+## Python packages {-}
 
 These packages are relevant to the book:
 
