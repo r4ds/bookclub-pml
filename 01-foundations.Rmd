@@ -1,0 +1,94 @@
+# 1 Foundations
+
+**Learning objectives:**
+
+- Understand the purpose for the book
+- Know the names of any python packages relevant to the book
+- Have an overview of
+  - what machine learning is
+  - the different types of machine learning problem
+  - different types of uncertainty
+
+## Origin of the book {-}
+
+2012
+- Deep learning revolution
+- ImageNet image classification challenge
+
+Hardware advances
+- GPUs
+
+Crowd sourcing data collection
+- Amazon Mechanical Turk
+
+Unifying lens for the book is “Probabilistic modeling and Bayesian decision theory”
+
+## Python packages {-}
+
+These packages are relevant to the book:
+
+- NumPy
+  - multidimensional arrays & computational maths
+- Scikit-learn
+  - machine learning toolkit
+- JAX
+  - numerics on tensors and automatic differentiation
+- PyTorch
+  - tensor library for deep learning
+- TensorFlow
+  - framework for building ML pipelines (?)
+- PyMC
+  - probabilistic programming MCMC etc
+
+## Notebooks for the book {-}
+
+[github](https://github.com/probml/pyprobml/blob/auto_notebooks_md/notebooks.md)
+
+The notebooks auto-open in Colab
+
+They show how to make the figures for the book
+
+## What is Machine Learning {-}
+
+To discuss:
+
+- What is machine learning?
+- What is machine learning from a probabilistic perspective?
+- Why take a probabilistic approach to ML?
+
+## Types of Machine Learning Problem {-}
+
+- supervised learning (classification, regression, )
+- unsupervised learning (clustering, latent variables)
+- reinforcement learning (learn how to interact with env)
+
+## Types of 'uncertainty' {-}
+
+- Input/Output mapping isn’t known or knowable (model uncertainty)
+- Randomness is intrinsic in the mapping (data uncertainty)
+
+## Meeting Videos {-}
+
+### Cohort 1 {-}
+
+`r knitr::include_url("https://www.youtube.com/embed/MxdYkiNTGKU?si=O5b8HWZVlm5p23Y-")`
+
+<details>
+<summary> Meeting chat log </summary>
+
+```
+00:04:09    Derek Sollberger (he/him):    Hello!
+00:04:41    Sohan Aryal:    Hello everyone,
+first time actually involving in a book club,
+00:05:08    jRad:    Hi, second one for me, been quite a while!
+00:05:20    Sohan Aryal:    Reacted to "Hi, second one for m..." with 😯
+00:54:33    Derek Sollberger (he/him):    Should the same person handle each two-week pair?
+00:59:33    Derek Sollberger (he/him):    If no one minds, I would like to volunteer for the second
+  half of the LDA chapter (on Bayesian classification)
+01:05:26    Rahul:    Thank you very much, Russ!
+01:05:29    Schafer, Toryn:    Thanks!
+01:05:34    Derek Sollberger (he/him):    Thank you all.  Thanks Russ!
+01:05:36    David Díaz:    Thanks!
+01:05:36    Russ Hyde:    Thanks everyone
+```
+</details>
