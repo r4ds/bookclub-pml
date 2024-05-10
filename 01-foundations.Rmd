@@ -9,7 +9,7 @@
   - the different types of machine learning problem
   - different types of uncertainty
 
-## Origin of the book
+## Origin of the book {-}
 
 2012
 - Deep learning revolution
