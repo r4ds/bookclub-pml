@@ -40,7 +40,7 @@ These packages are relevant to the book:
 - PyMC
   - probabilistic programming MCMC etc
 
-## Notebooks for the book
+## Notebooks for the book {-}
 
 [github](https://github.com/probml/pyprobml/blob/auto_notebooks_md/notebooks.md)
 
