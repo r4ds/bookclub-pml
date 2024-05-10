@@ -62,7 +62,7 @@ To discuss:
 - unsupervised learning (clustering, latent variables)
 - reinforcement learning (learn how to interact with env)
 
-## Types of 'uncertainty'
+## Types of 'uncertainty' {-}
 
 - Input/Output mapping isn’t known or knowable (model uncertainty)
 - Randomness is intrinsic in the mapping (data uncertainty)
