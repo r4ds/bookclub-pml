@@ -2,12 +2,82 @@
 
 **Learning objectives:**
 
-- THESE ARE NICE TO HAVE BUT NOT ABSOLUTELY NECESSARY
+- Purpose of classifiers
+- What are generative classifiers
+- Gaussian Discriminant Analysis lead to curved decision boundaries
+- Linear Discriminant Analysis and linear decision boundaries
+- ScikitLearn approaches for Linear / Gaussian Discriminant Analysis
 
-## SLIDE 1 {-}
+## Tooling
 
-- ADD SLIDES AS SECTIONS (`##`).
-- TRY TO KEEP THEM RELATIVELY SLIDE-LIKE; THESE ARE NOTES, NOT THE BOOK ITSELF.
+Scikitlearn:
+
+- [API](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.discriminant_analysis)
+- and [chapter](https://scikit-learn.org/stable/modules/lda_qda.html) 
+
+... on Linear / Gaussian Discriminant Analysis
+
+## Classification Models {-}
+
+$p(y=c|x,\theta) = \frac{p(x|y=c,\theta)p(y=c|\theta)}{\Sigma_{c'}{p(x|y=c',\theta)p(y=c'|\theta)}}$
+
+Note:
+
+- Prior $p(y=c|\theta) = \pi_c$
+- Class conditional density $p(x|y=c,\theta)$
+- Generative classifier
+
+Discriminative classifiers directly model $p(y|x,\theta)$
+
+## Linear discriminant analysis
+
+We want the posterior over classes to be a linear function of $x$
+
+$\log{p(y=c|x,\theta)}=w^Tx+const$
+
+## Gaussian discriminant analysis
+
+$p(x|y = c, θ) = N(x|µ_c , Σ_c )$
+
+Hence,
+
+$p(y = c|x, θ) ∝ π_c N (x|µ_c , Σ_c )$
+
+## Gaussian discriminants -> Quadratic decision boundaries
+
+Log posterior is "The discriminant function"
+
+$\log p(y = c|x, θ) = \log π_c − (1/2)\log|2πΣ_c | − (x − µ_c )^T Σ^{−1}_c (x − µ_c ) + const$
+
+Let $p(y=c|x,\theta)=p(y=c'|x,\theta)$
+
+Then
+
+$(x − µ_c )^TΣ^{−1}_c(x − µ_c) - (x − µ_{c'} )^T Σ^{−1}_{c'} (x − µ_{c'})=f(\pi_c,\pi_c',\Sigma_c,\Sigma_c')$
+
+So the decision boundaries between classes are quadratic in $x$.
+
+GOTO [workbook](https://github.com/probml/pyprobml/blob/master/notebooks/book1/09/discrim_analysis_dboundaries_plot2.ipynb)
+
+## Tied covariance matrices -> Linear decision boundaries
+
+$\log p(y = c|x, θ) = \log π_c − (x − µ_c )^T Σ^{−1} (x − µ_c ) + const$
+
+$= \log π_c − µ^T_c Σ^{−1} µ_c +x^T Σ^−1 µ_c +const − x^T Σ^{−1} x$
+
+$=\gamma_c + x^T\beta_c + \kappa$
+
+So the decision boundaries occur when
+
+$\gamma_c + x^T\beta_c + \kappa = \gamma_{c'} + x^T\beta_{c'} + \kappa$
+
+$x^T(\beta_c - \beta_{c'}) = \gamma_{c'} - \gamma_{c}$
+
+GOTO [workbook](https://github.com/probml/pyprobml/blob/master/notebooks/book1/09/discrim_analysis_dboundaries_plot2.ipynb)
+
+## LDA & Logistic regression
+
+GOTO textbook
 
 ## Meeting Videos {-}
 
@@ -19,6 +89,6 @@
 <summary> Meeting chat log </summary>
 
 ```
-LOG
+00:51:52    Heidi L Wallace:    I have to jump before my next meeting, thank you so much  for this!
 ```
 </details>
