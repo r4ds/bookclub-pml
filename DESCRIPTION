@@ -8,6 +8,17 @@ URL: https://r4ds.github.io/bookclub-pml,
 Depends:
     R (>= 3.1.0)
 Imports: 
+    bayesrules,
     bookdown,
-    rmarkdown
+    dplyr,
+    e1071,
+    ggplot2,
+    ggtext,
+    gt,
+    janitor,
+    magrittr,
+    MASS,
+    patchwork,
+    rmarkdown,
+    tidyr
 Encoding: UTF-8
