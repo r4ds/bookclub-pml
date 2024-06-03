@@ -2,12 +2,754 @@
 
 **Learning objectives:**
 
-- THESE ARE NICE TO HAVE BUT NOT ABSOLUTELY NECESSARY
+- Gain a deeper understanding of logistic regression
+- Show existence and uniqueness of optimal solution
+- Motivate and perform robust logistic regression
+- Motivate and perform Bayesian logistic regression
+- Motivate and perform probit regression
 
-## SLIDE 1 {-}
+```{r setup_ch_10, message = FALSE, warning = FALSE}
+library("bayesplot")
+library("broom.mixed")
+library("dplyr")
+library("janitor")
+library("ggplot2")
+library("ggtext")
+library("robust")
+library("rstanarm")
+library("palmerpenguins")
+```
 
-- ADD SLIDES AS SECTIONS (`##`).
-- TRY TO KEEP THEM RELATIVELY SLIDE-LIKE; THESE ARE NOTES, NOT THE BOOK ITSELF.
+<details>
+<summary>Session Info</summary>
+```{r}
+sessionInfo()
+```
+
+</details>
+
+## Logistic Regression
+
+Classification of $y \in \{0,1\}$
+
+$$p(y|x,\theta) = \text{Ber}(y | \sigma(w^{T}x + b))$$
+
+* logit $a$: $w^{T}x + b$
+* sigmoid: 
+
+$$\sigma(a) = \frac{1}{1 + e^{-a}} = p(y = 1 | x,\theta)$$
+
+## Logistic Regression in R
+
+### Palmer Penguins Example
+
+```{r, echo = FALSE, eval = TRUE}
+adelie_color = "#fb7504"
+chinstrap_color = "#c65ccc"
+gentoo_color = "#067476"
+
+penguin_class_df <- penguins |>
+  na.omit() |>
+  mutate(chinstrap_bool = ifelse(species == "Chinstrap", 1, 0)) |>
+  mutate(across(chinstrap_bool, as.factor)) #https://stackoverflow.com/questions/33180058/coerce-multiple-columns-to-factors-at-once
+
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  labs(title = "Classification Task",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins among n = 333 penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R Code</summary>
+```{r, echo = TRUE, eval = FALSE}
+adelie_color = "#fb7504"
+chinstrap_color = "#c65ccc"
+gentoo_color = "#067476"
+
+penguin_class_df <- penguins |>
+  na.omit() |>
+  mutate(chinstrap_bool = ifelse(species == "Chinstrap", 1, 0)) |>
+  mutate(across(chinstrap_bool, as.factor)) #https://stackoverflow.com/questions/33180058/coerce-multiple-columns-to-factors-at-once
+
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  labs(title = "Classification Task",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins among n = 333 penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+<details>
+
+### Generalized Linear Models
+
+```{r}
+logistic_model <- stats::glm(chinstrap_bool ~ flipper_length_mm + bill_length_mm,
+                      data = penguin_class_df,
+                      family = binomial) #makes logistic regression
+```
+
+```{r, echo = FALSE, eval = TRUE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(logistic_model)[1]
+beta_1 <- coef(logistic_model)[2]
+beta_2 <- coef(logistic_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = species_pred)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "<span style = 'color:#fb7504'>Decision Boundary</span>",
+       subtitle = "where logit a = 0",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R code</summary>
+
+```{r, echo = TRUE, eval = FALSE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(logistic_model)[1]
+beta_1 <- coef(logistic_model)[2]
+beta_2 <- coef(logistic_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = species_pred)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "<span style = 'color:#fb7504'>Decision Boundary</span>",
+       subtitle = "where logit a = 0",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+```{r}
+penguin_pred_df |>
+  janitor::tabyl(chinstrap_bool, species_pred) |>
+  janitor::adorn_totals(c("row", "col"))
+```
+
+* [accuracy](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9550
+* [sensitivity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.8824
+* [specificity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9736
+
+
+## Robust Logistic Regression
+
+* misclassified outliers can greatly affect models
+* want: upper bound on regression coefficients
+* first idea: linear combination of uninformative prior and logistic regression
+
+$$p(y|x) = \pi \text{Ber}(y|0.5) + (1-\pi) \text{Ber}(y | \sigma(w^{T}x + b))$$
+
+## Bi-Tempered Loss
+
+```{r, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) +   
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  geom_segment(aes(x = 208, y = 37, xend = 203, yend = 42),
+               arrow = arrow(length = unit(0.5, "cm")),
+               color = gentoo_color,
+               linewidth = 2) +
+  labs(title = "<span style = 'color:#067476'>Far Misclassification</span>",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R Code</summary>
+```{r, echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) +   
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  geom_segment(aes(x = 208, y = 37, xend = 203, yend = 42),
+               arrow = arrow(length = unit(0.5, "cm")),
+               color = gentoo_color,
+               linewidth = 2) +
+  labs(title = "<span style = 'color:#067476'>Far Misclassification</span>",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+With one-hot encoding and mass on class $c$, the **tempered cross entropy loss** is
+
+$$L(c,\hat{y}) = \frac{1}{1 - t_{1}}\left( 1 - y_{c}^{1-t_{1}} \right) - \frac{1}{2-t_{1}}\left( 1 - \displaystyle\sum_{c'=1}^{C} \hat{y}_{c}^{2-t_{1}}\right)$$
+
+* $0 \leq t_{1} < 1$
+* As $t_{1} \rightarrow 1.0$, this reverts back to the log function and standard cross entropy
+
+```{r, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) +   
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  geom_segment(aes(x = 208.5, y = 43, xend = 203.5, yend = 48),
+               arrow = arrow(length = unit(0.5, "cm")),
+               color = gentoo_color,
+               linewidth = 2) +
+  labs(title = "<span style = 'color:#067476'>Close Misclassification</span>",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R Code</summary>
+```{r, echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) +   
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  geom_segment(aes(x = 208.5, y = 43, xend = 203.5, yend = 48),
+               arrow = arrow(length = unit(0.5, "cm")),
+               color = gentoo_color,
+               linewidth = 2) +
+  labs(title = "<span style = 'color:#067476'>Close Misclassification</span>",
+       subtitle = "Finding the <span style = 'color:#c65ccc'>Chinstrap</span> penguins",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+The **tempered softmax** is
+
+$$\hat{y}_{c} = \left[ 1 + (1-t_{2})(a_{c} - \lambda t_{2}(a)) \right]^{1/(1-t_{2})}$$
+
+* $0 \leq t_{1} < 1 < t_{2}$
+
+With the additional constraint $\displaystyle\sum_{c = 1}^{C} \hat{y}_{c} = 1$, we can approximate $\lambda$ with fixed-point iteration (**Algorithm 10.2**).
+
+
+## Robust Logistic Regression in R
+
+```{r}
+robust_model <- robust::glmRob(chinstrap_bool ~ flipper_length_mm + bill_length_mm,
+                      data = penguin_class_df,
+                      family = binomial) #makes logistic regression
+```
+
+```{r, echo = FALSE, eval = TRUE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(robust_model)[1]
+beta_1 <- coef(robust_model)[2]
+beta_2 <- coef(robust_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "Robust Logistic Regression",
+       subtitle = "<span style = 'color:#fb7504'>decision boundary</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R code</summary>
+```{r, echo = TRUE, eval = FALSE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(robust_model)[1]
+beta_1 <- coef(robust_model)[2]
+beta_2 <- coef(robust_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "Robust Logistic Regression",
+       subtitle = "<span style = 'color:#fb7504'>decision boundary</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+```{r}
+penguin_pred_df |>
+  janitor::tabyl(chinstrap_bool, species_pred) |>
+  janitor::adorn_totals(c("row", "col"))
+```
+
+* [accuracy](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9550
+* [sensitivity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.8824
+* [specificity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9736
+
+
+## Bayesian Logistic Regression
+
+In addition to point estimates, we may want to measure uncertainty
+
+* need to approximate posterior distribution (MAP: $\hat{w}$)
+
+$$p(y|x,D) \approx \displaystyle\int \! p(y|x,w)\delta(w - \hat{w}) \, dw = p(y|x,\hat{w})$$
+* comparative advantage with smaller data sets
+
+### Laplace Approximation
+
+For a unique solution, we employ a spherical Gaussian prior
+
+$$\text{N}(w|0, \sigma^{2}I)$$
+
+* informative prior (small $\sigma^{2}$): better [sensitivity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity)
+* vague prior (large $\sigma^{2}$): better [specificity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity)
+
+## MCMC
+
+```{r}
+start_time <- Sys.time()
+
+# using OLS to guide creation of prior distribution
+OLS_model <- lm(bill_length_mm ~ flipper_length_mm,
+                data = penguin_class_df)
+OLS_intercept <- coef(OLS_model)[1]
+OLS_slope     <- coef(OLS_model)[2]
+mu_x <- mean(penguin_class_df$flipper_length_mm)
+mu_y <- mean(penguin_class_df$bill_length_mm)
+var_x <- var(penguin_class_df$flipper_length_mm)
+var_y <- var(penguin_class_df$bill_length_mm)
+
+Bayesian_model_prior <- rstanarm::stan_glm(
+  formula = chinstrap_bool ~ flipper_length_mm + bill_length_mm,
+  data = penguin_class_df,
+  family = binomial,
+  prior_intercept = normal(OLS_intercept, 1),
+  prior = normal(c(mu_x, mu_y), c(var_x, var_y)),
+  prior_aux = exponential(1),
+  prior_PD = TRUE,
+  chains = 4, iter = 5000*2, refresh = 0, seed = 320)
+
+Bayesian_model_post <- update(Bayesian_model_prior, prior_PD = FALSE)
+
+end_time <- Sys.time()
+print(end_time - start_time)
+```
+
+### Prior Distribution
+
+```{r, echo = FALSE, eval = TRUE}
+sim_df_prior <- as.data.frame(Bayesian_model_prior) |>
+  mutate(boundary_intercept = -1.0*`(Intercept)` / bill_length_mm,
+         boundary_slope = -1.0*flipper_length_mm / bill_length_mm) |>
+  # grab IQR to avoid quickly ignored prior samples
+  arrange(boundary_slope) |>
+  slice(5000:15000)
+
+# make data frame of line segments
+flipper_min <- min(penguin_class_df$flipper_length_mm)
+flipper_max <- max(penguin_class_df$flipper_length_mm)
+sim_df_prior_sample <- sim_df_prior |>
+  mutate(x1 = flipper_min,
+         x2 = flipper_max,
+         y1 = boundary_intercept + boundary_slope * x1,
+         y2 = boundary_intercept + boundary_slope * x2) |>
+  slice_sample(n = 20) |>
+  mutate(line_id = 1:20)
+
+
+# bill_min <- min(penguin_class_df$bill_length_mm)
+# bill_max <- max(penguin_class_df$bill_length_mm)
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm)) + 
+  geom_point(size = 3) + 
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2,
+                   color = line_id, group = line_id),
+               data = sim_df_prior_sample) +
+  labs(title = "Bayesian Logistic Regression",
+       subtitle = "<span style = 'color:#fb7504'>sample of prior distribution</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_gradient(low = adelie_color, high = gentoo_color) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+  # ylim(bill_min, bill_max)
+```
+
+<details>
+<summary>R code</summary>
+```{r, echo = TRUE, eval = FALSE}
+sim_df_prior <- as.data.frame(Bayesian_model_prior) |>
+  mutate(boundary_intercept = -1.0*`(Intercept)` / bill_length_mm,
+         boundary_slope = -1.0*flipper_length_mm / bill_length_mm) |>
+  # grab IQR to avoid quickly ignored prior samples
+  arrange(boundary_slope) |>
+  slice(5000:15000)
+
+# make data frame of line segments
+flipper_min <- min(penguin_class_df$flipper_length_mm)
+flipper_max <- max(penguin_class_df$flipper_length_mm)
+sim_df_prior_sample <- sim_df_prior |>
+  mutate(x1 = flipper_min,
+         x2 = flipper_max,
+         y1 = boundary_intercept + boundary_slope * x1,
+         y2 = boundary_intercept + boundary_slope * x2) |>
+  slice_sample(n = 20) |>
+  mutate(line_id = 1:20)
+
+
+# bill_min <- min(penguin_class_df$bill_length_mm)
+# bill_max <- max(penguin_class_df$bill_length_mm)
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm)) + 
+  geom_point(size = 3) + 
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2,
+                   color = line_id, group = line_id),
+               data = sim_df_prior_sample) +
+  labs(title = "Bayesian Logistic Regression",
+       subtitle = "<span style = 'color:#fb7504'>sample of prior distribution</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_gradient(low = adelie_color, high = gentoo_color) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+  # ylim(bill_min, bill_max)
+```
+</details>
+
+
+### Posterior Distribution
+
+```{r}
+bayesplot::mcmc_trace(Bayesian_model_post, size = 0.1) +
+  labs(title = "MCMC Traces")
+```
+
+```{r, echo = FALSE, eval = TRUE}
+sim_df_post <- as.data.frame(Bayesian_model_post) |>
+  mutate(boundary_intercept = -1.0*`(Intercept)` / bill_length_mm,
+         boundary_slope = -1.0*flipper_length_mm / bill_length_mm)
+
+# make data frame of line segments
+sim_df_post_sample <- sim_df_post |>
+  mutate(x1 = flipper_min,
+         x2 = flipper_max,
+         y1 = boundary_intercept + boundary_slope * x1,
+         y2 = boundary_intercept + boundary_slope * x2) |>
+  slice_sample(n = 20) |>
+  mutate(line_id = 1:20)
+
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm)) + 
+  geom_point(size = 3) + 
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2,
+                   color = line_id, group = line_id),
+               data = sim_df_post_sample) +
+  labs(title = "Bayesian Logistic Regression",
+       subtitle = "<span style = 'color:#c65ccc'>sample of posterior distribution</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_gradient(low = adelie_color, high = gentoo_color) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R code</summary>
+```{r, echo = TRUE, eval = FALSE}
+sim_df_post <- as.data.frame(Bayesian_model_post) |>
+  mutate(boundary_intercept = -1.0*`(Intercept)` / bill_length_mm,
+         boundary_slope = -1.0*flipper_length_mm / bill_length_mm)
+
+# make data frame of line segments
+sim_df_post_sample <- sim_df_post |>
+  mutate(x1 = flipper_min,
+         x2 = flipper_max,
+         y1 = boundary_intercept + boundary_slope * x1,
+         y2 = boundary_intercept + boundary_slope * x2) |>
+  slice_sample(n = 20) |>
+  mutate(line_id = 1:20)
+
+penguin_class_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm)) + 
+  geom_point(size = 3) + 
+  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2,
+                   color = line_id, group = line_id),
+               data = sim_df_post_sample) +
+  labs(title = "Bayesian Logistic Regression",
+       subtitle = "<span style = 'color:#c65ccc'>sample of posterior distribution</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_gradient(low = adelie_color, high = gentoo_color) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+```{r}
+broom.mixed::tidy(Bayesian_model_post,
+                  conf.int = TRUE, conf.level = 0.90) |>
+  mutate_if(is.numeric, round, digits = 4)
+```
+
+```{r, echo = FALSE, eval = TRUE}
+bayesplot::mcmc_areas(Bayesian_model_post,
+                      pars = c("flipper_length_mm", "bill_length_mm"),
+                      prob = 0.9) +
+  labs(title = "MCMC Areas",
+       subtitle = "90 percent credible intervals",
+       caption = "Data Science Learning Community")
+```
+
+<details>
+<summary>R code</summary>
+```{r, echo = TRUE, eval = FALSE}
+bayesplot::mcmc_areas(Bayesian_model_post,
+                      pars = c("flipper_length_mm", "bill_length_mm"),
+                      prob = 0.9) +
+  labs(title = "MCMC Areas",
+       subtitle = "90 percent credible intervals",
+       caption = "Data Science Learning Community")
+```
+</details>
+
+## Probit Approximation
+
+* avoid long computation time
+* assume likelihood is also normally distributed
+
+$$p(w|D) = \text{N}(w|\mu, \Sigma)$$
+
+### Approximation of Posterior
+
+* sigmoid is similar to normal CDF
+
+$$\sigma(a) \approx \Phi\left(\frac{a\sqrt{\pi}}{\sqrt{8}}\right)$$
+
+* approx posterior via sigmoid
+
+$$\begin{array}{rcccl}
+p(y=1|x,D) & = & \sigma\left(\frac{m}{\sqrt{1+\frac{\pi v}{8}}}\right) \\
+m & = & \text{E}[a] & = & x^{T}\mu \\
+v & = & \text{V}[a] & = & x^{T}\Sigma x \\
+a & = & x^{T}w
+\end{array}$$
+
+* produces estimates that are closer to the decision boundary
+
+
+## Probit Approximation in R
+
+```{r}
+start_time <- Sys.time()
+
+probit_model <- stats::glm(chinstrap_bool ~ flipper_length_mm + bill_length_mm,
+                      data = penguin_class_df,
+                      family = binomial(link = "probit")) #makes probit approx
+
+end_time <- Sys.time()
+print(end_time - start_time)
+```
+
+
+```{r, echo = FALSE, eval = TRUE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(probit_model)[1]
+beta_1 <- coef(probit_model)[2]
+beta_2 <- coef(probit_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "Probit Approximation",
+       subtitle = "<span style = 'color:#fb7504'>decision boundary</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+
+<details>
+<summary>R code</summary>
+```{r, echo = TRUE, eval = FALSE}
+# https://stats.stackexchange.com/questions/6206/how-to-plot-decision-boundary-in-r-for-logistic-regression-model
+beta_0 <- coef(probit_model)[1]
+beta_1 <- coef(probit_model)[2]
+beta_2 <- coef(probit_model)[3]
+boundary_slope <- -1.0 * beta_1 / beta_2
+boundary_intercept <- -1.0 * beta_0 / beta_2
+
+penguin_pred_df <- penguin_class_df |>
+  mutate(species_pred = ifelse(
+    bill_length_mm > boundary_intercept + boundary_slope * flipper_length_mm,
+    1,0)) |>
+  mutate(across(species_pred, as.factor))
+
+penguin_pred_df |>
+ggplot(aes(x = flipper_length_mm, y = bill_length_mm, 
+           color = chinstrap_bool)) + 
+  geom_point(size = 3) + 
+  geom_abline(intercept = boundary_intercept,
+              slope = boundary_slope,
+              color = adelie_color,
+              linewidth = 2,
+              linetype = 2) +
+  labs(title = "Probit Approximation",
+       subtitle = "<span style = 'color:#fb7504'>decision boundary</span>",
+       caption = "Data Science Learning Community") +
+  scale_color_manual(values = c("gray70", chinstrap_color)) +
+  theme_minimal() +
+  theme(plot.title = element_markdown(face = "bold", size = 24),
+        plot.subtitle = element_markdown(size = 16))
+```
+</details>
+
+```{r}
+penguin_pred_df |>
+  janitor::tabyl(chinstrap_bool, species_pred) |>
+  janitor::adorn_totals(c("row", "col"))
+```
+
+* [accuracy](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9550
+* [sensitivity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.8824
+* [specificity](https://en.wikipedia.org/wiki/Sensitivity_and_specificity): 0.9736
+
+
+## Summary
+
+* Logistic regression: classification tasks
+* Robust logistic regression: helps with misclassification outliers
+* Bayesian logistic regression:
+
+    - pro: helps measure uncertainty
+    - con: computationally expensive
+
+* Probit approximation:
+
+    - pro: computationally inexpensive
+    - con: loses info about posterior distribution
+
 
 ## Meeting Videos {-}
 

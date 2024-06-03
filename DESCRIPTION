@@ -8,8 +8,10 @@ URL: https://r4ds.github.io/bookclub-pml,
 Depends:
     R (>= 3.1.0)
 Imports: 
+    bayesplot,
     bayesrules,
     bookdown,
+    broom.mixed,
     dplyr,
     e1071,
     ggplot2,
@@ -18,7 +20,10 @@ Imports:
     janitor,
     magrittr,
     MASS,
+    palmerpenguins,
     patchwork,
     rmarkdown,
+    robust,
+    rstanarm,
     tidyr
 Encoding: UTF-8
